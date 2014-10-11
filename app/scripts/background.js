@@ -93,6 +93,34 @@ var removePostListeners = function(user){
   });
 };
 
+
+//here are example invocations of those functions
+listenToUser('neonkiwi', function(data){
+  console.log('user data is: ', data);
+});
+
+mostRecentPost('neonkiwi', function(data){
+  console.log('post data is: ', data);
+}, function(){
+  console.log('inside failure cb of listenToPost');
+});
+
+
+
+
+console.log('\'Allo \'Allo! Event Page for Browser Action');
+
+var on;
+
+on = false;
+
+chrome.browserAction.onClicked.addListener(function(tab){
+  chrome.tabs.sendMessage(tab.id, {modal: on}, function(response) {
+    on = response.modal;
+>>>>>>> start setting up messaging b/w content and background scripts
+  });
+};
+
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
   console.log('message received in background.js');
   //route message

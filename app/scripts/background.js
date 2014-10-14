@@ -121,6 +121,7 @@ chrome.browserAction.onClicked.addListener(function(tab){
   });
 };
 
+//add listener for setting user
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
   console.log('message received in background.js');
   //route message

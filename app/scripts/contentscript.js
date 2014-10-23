@@ -5,7 +5,7 @@ chrome.storage.sync.get(['hackerMuseUser', 'hackerMuseUserData', 'hackerMuseRece
   console.log(data);
 });
 
-chrome.runtime.sendMessage({method: 'setHackerMuseUser', user: 'JDoty'}, function(response) {
+chrome.runtime.sendMessage({method: 'setHackerMuseUser', user: 'tadmilbourn'}, function(response) {
   console.log('response from emitted event is: ', response.response);
 });
 

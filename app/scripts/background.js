@@ -1,4 +1,5 @@
 'use strict';
+var NUMBER_POSTS = 10;
 
 chrome.runtime.onInstalled.addListener(function (details) {
   console.log('previousVersion', details.previousVersion);
@@ -8,10 +9,28 @@ chrome.runtime.onInstalled.addListener(function (details) {
 var items = new Firebase('https://hacker-news.firebaseio.com/v0/item');
 var users = new Firebase('https://hacker-news.firebaseio.com/v0/user');
 
+// function to test whether data is being stored correctly
+var getData = function(){
+  chrome.storage.sync.get('hackerMuseUser', function(user){
+    console.log('data inside getUser is: ', user);
+    chrome.storage.sync.get('hackerMuseRecentPostData', function(recent){
+      chrome.storage.sync.get('hackerMuseAllPostData', function(all){
+        chrome.storage.sync.get('hackerMuseUserData', function(data){
+          console.log('user', user);
+          console.log('data', data);
+          console.log('recent', recent);
+          console.log('all', all);
+        });
+      });
+    });
+  });
+};
+
+getData();
+
 //get user
 var getUser = function(success, unset, context){
   chrome.storage.sync.get('hackerMuseUser', function(data){
-    console.log('data inside getUser is: ', data);
     var keys = Object.keys(data);
     if (keys.length === 0){
       unset.call(context);
@@ -51,27 +70,27 @@ var removeUserListener = function(user, cb){
 //callback is invoked whenever change to user's most recent post occurs
 //or if there is a new most recent post
 //failure is invoked if no data found
-var mostRecentPost = function(user, success, failure){
+var mostRecentPosts = function(user, numPosts, success, failure){
   users.child(user).on('value', function(data){
-    var submissions, curr;
+    var submissions, curr, posts;
     data = data.val();
     if (data === null) failure();
     else {
       submissions = data.submitted;
-      console.log('data.submitted: ', data.submitted);
       curr = 0;
+      posts = [];
       (function getPost(){
-        if (curr >= submissions.length) failure();
+        if ( curr >= submissions.length || posts.length >= numPosts) {
+          success(posts);
+        }
         else {
           items.child(submissions[curr]).on('value', function(data){
+            curr++;
             data = data.val();
             if (data !== null && data.type === 'story'){
-              success(data);
+              posts.push(data);
             }
-            else {
-              curr++;
-              getPost();
-            }
+            getPost();
           });
         }
       })();
@@ -83,7 +102,6 @@ var removePostListeners = function(user){
   users.child(user).on('value', function(data){
     data = data.val();
     if ( data !== null ){
-      console.log('inside removepost listeners data is: ', data);
       var submissions  = data.submitted;
       for ( var i = 0; i < submissions.length; i++ ){
         items.child(submissions[i]).off('value');
@@ -93,41 +111,62 @@ var removePostListeners = function(user){
   });
 };
 
+
+var on;
+
+on = false;
+
+chrome.browserAction.onClicked.addListener(function(tab){
+  chrome.tabs.sendMessage(tab.id, {modal: on}, function(response) {
+    on = response.modal;
+  });
+});
+
+
+//add listener for setting user
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
-  console.log('message received in background.js');
   //route message
+  console.log('message.user is: ', message.user);
   if ( message.method === 'setHackerMuseUser' ){
     //check to see if a user is already set 
     getUser(function(name){
-      console.log('name is: ', name);
 
       //if user exists and setting to a different name
-      if (name !== message.user){
+      if (name !== message.user && name !== ''){
         //remove all existing callbacks
+        console.log('name is: ', name);
         removePostListeners(name);
         removeUserListener(name);
+      }
 
-        //and register cb's for new user
-        setUser(message.user, function(){
-          listenToUser(message.user, function(data){
-            chrome.storage.sync.set({'hackerMuseUserData': data});
-          });
-          mostRecentPost(message.user, function(data){
-            chrome.storage.sync.set({'hackerMuseRecentPostData': data});
-          });
+      //and register cb's for new user
+      setUser(message.user, function(){
+        listenToUser(message.user, function(data){
+          chrome.storage.sync.set({'hackerMuseUserData': data});
         });
+        mostRecentPosts(message.user, 1, function(data){
+          chrome.storage.sync.set({'hackerMuseRecentPostData': data});
+        });
+        mostRecentPosts(message.user, NUMBER_POSTS, function(data){
+          chrome.storage.sync.set({'hackerMuseAllPostData': data});
+        });
+      });
+      
         //send response indicating what work was done
         sendResponse({response: 'user changed'});
-      }
     }, function(){
       //if no user exists
       //then set user and register firebase cb's
+      console.log('no user exists');
       setUser(message.user, function(){
           listenToUser(message.user, function(data){
             chrome.storage.sync.set({'hackerMuseUserData': data});
           });
-          mostRecentPost(message.user, function(data){
+          mostRecentPosts(message.user, 1, function(data){
             chrome.storage.sync.set({'hackerMuseRecentPostData': data});
+          });
+          mostRecentPosts(message.user, NUMBER_POSTS, function(data){
+            chrome.storage.sync.set({'hackerMuseAllPostData': data});
           });
       });
       //send response indicating what work was done

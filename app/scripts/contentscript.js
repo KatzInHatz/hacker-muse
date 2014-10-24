@@ -5,11 +5,9 @@ chrome.storage.sync.get(['hackerMuseUser', 'hackerMuseUserData', 'hackerMuseRece
   console.log(data);
 });
 
-chrome.runtime.sendMessage({method: 'setHackerMuseUser', user: 'JDoty'}, function(response) {
-  console.log('response from emitted event is: ', response.response);
-});
-
-console.log('\'Allo \'Allo! Content script');
+// chrome.runtime.sendMessage({method: 'setHackerMuseUser', user: 'jstedfast'}, function(response) {
+//   console.log('response from emitted event is: ', response.response);
+// });
 
 var background, modal, on, appendModal, detachModal, toggleModal;
 var view, textfield, button, label, flipper, flipped, image;
@@ -67,6 +65,13 @@ function track() {
 
   // remove textfield
   textfield = view.removeChild(textfield);
+
+  console.log('textfield value is: ', textfield.value);
+
+  // set the user to user input username
+  chrome.runtime.sendMessage({method: 'setHackerMuseUser', user: textfield.value}, function(){
+    console.log('response from emitted event is: ', response.response);
+  });
 
   // repurpose label
   label.innerHTML = 'POST';
@@ -126,6 +131,22 @@ function track() {
   view.appendChild(commentFlipper);
   commentFlipper.appendChild(commentFlipped);
   view.appendChild(commentLabel);
+
+  // add event listeners to the storage of user data
+  chrome.storage.onChanged.addListener(function(changes, areaName){
+    console.log('changes are: ', changes);
+    if(changes.hackerMuseUserData){
+      console.log(changes.hackerMuseUserData.newValue.karma.toString(10));
+      flipper.innerHTML = changes.hackerMuseUserData.newValue.karma.toString(10);
+    }
+    if(changes.hackerMuseRecentPostData){
+      var kids = changes.hackerMuseRecentPostData.newValue[0].kids
+      pointFlipper.innerHTML   = changes.hackerMuseRecentPostData.newValue[0].score.toString(10);
+      commentFlipper.innerHTML = kids === undefined ? 0 : kids.length;
+    }
+  });
+
+
 }
 
 function select() {
